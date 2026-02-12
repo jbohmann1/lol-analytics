@@ -1,0 +1,43 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Player {
+  puuid     String   @id
+  region    String
+  gameName  String
+  tagLine   String
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  matches   PlayerMatch[]
+}
+
+model Match {
+  matchId      String   @id
+  regionGroup  String
+  gameCreation BigInt?
+  gameVersion  String?
+  queueId      Int?
+
+  rawJson      Json
+
+  createdAt    DateTime @default(now())
+
+  players      PlayerMatch[]
+}
+
+model PlayerMatch {
+  puuid   String
+  matchId String
+
+  player Player @relation(fields: [puuid], references: [puuid], onDelete: Cascade)
+  match  Match  @relation(fields: [matchId], references: [matchId], onDelete: Cascade)
+
+  @@id([puuid, matchId])
+  @@index([matchId])
+}
