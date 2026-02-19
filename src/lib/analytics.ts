@@ -12,6 +12,7 @@ export type MatchRow = {
   visionPerMin: number;
   durationMin: number;
   gameCreation: number;
+  summonerId: string;
 };
 
 export function extractRowFromMatch(puuid: string, match: any): MatchRow | null {
@@ -27,6 +28,7 @@ export function extractRowFromMatch(puuid: string, match: any): MatchRow | null 
 
   return {
     matchId: meta.matchId,
+    summonerId: p.summonerID ?? "",
     win: !!p.win,
     championName: p.championName ?? String(p.championId ?? "Unknown"),
     teamPosition: p.teamPosition ?? "",

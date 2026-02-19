@@ -1,7 +1,30 @@
 import { headers } from "next/headers";
 
+import { TopChampsChart, RolesChart } from "@/components/DashboardCharts";
+
+
 type DashboardResponse = {
   account: { puuid: string; gameName: string; tagLine: string };
+
+  ranked: {
+  solo: null | {
+    tier?: string;
+    rank?: string;
+    leaguePoints?: number;
+    wins?: number;
+    losses?: number;
+    queueType: string;
+  };
+  flex: null | {
+    tier?: string;
+    rank?: string;
+    leaguePoints?: number;
+    wins?: number;
+    losses?: number;
+    queueType: string;
+    };
+  };
+  
   summary: {
     games: number;
     wins: number;
@@ -78,6 +101,12 @@ export default async function SummonerPage({
         <div className="text-sm opacity-70">
           {region} • last {s.games} games
         </div>
+        <div className="text-sm opacity-80">
+          {renderRank("Solo/Duo", data.ranked.solo)}{" "}
+          <span className="opacity-40">•</span>{" "}
+          {renderRank("Flex", data.ranked.flex)}
+        </div>
+
       </header>
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -85,6 +114,11 @@ export default async function SummonerPage({
         <Stat label="Avg K/D/A" value={`${s.avgK.toFixed(1)}/${s.avgD.toFixed(1)}/${s.avgA.toFixed(1)}`} />
         <Stat label="CS/min" value={s.avgCsPerMin.toFixed(1)} />
         <Stat label="Vision/min" value={s.avgVisionPerMin.toFixed(2)} />
+      </section>
+
+      <section className="grid md:grid-cols-2 gap-4">
+        <TopChampsChart data={s.topChamps} />
+        <RolesChart data={s.roles} />
       </section>
 
       <section className="grid md:grid-cols-2 gap-4">
@@ -112,7 +146,6 @@ export default async function SummonerPage({
           </div>
         </div>
       </section>
-
 
       <section className="space-y-2">
         <h2 className="text-lg font-semibold">Recent Matches</h2>
@@ -163,4 +196,18 @@ function Stat({ label, value }: { label: string; value: string }) {
       <div className="text-xl font-semibold">{value}</div>
     </div>
   );
+}
+
+function renderRank(
+  label: string,
+  entry: null | { tier?: string; rank?: string; leaguePoints?: number; wins?: number; losses?: number }
+) {
+  if (!entry || !entry.tier || !entry.rank) return `${label}: Unranked`;
+
+  const wins = entry.wins ?? 0;
+  const losses = entry.losses ?? 0;
+  const games = wins + losses;
+  const wr = games ? Math.round((wins / games) * 100) : 0;
+
+  return `${label}: ${entry.tier} ${entry.rank} (${entry.leaguePoints ?? 0} LP) • ${wr}% WR`;
 }

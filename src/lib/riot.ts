@@ -27,18 +27,30 @@ export function regionToGroup(region: string): RegionGroup {
  */
 async function riotFetch<T>(url: string, schema: z.ZodSchema<T>): Promise<T> {
   const res = await fetch(url, {
-    headers: {
-      "X-Riot-Token": RIOT_API_KEY!,
-    },
+    headers: { "X-Riot-Token": RIOT_API_KEY! },
+    cache: "no-store",
   });
 
+  const text = await res.text().catch(() => "");
+
   if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`Riot API error ${res.status}: ${body}`);
+    throw new Error(`Riot API error ${res.status} for ${url}: ${text}`);
   }
 
-  const json = await res.json();
-  return schema.parse(json);
+  let json: any;
+  try {
+    json = text ? JSON.parse(text) : {};
+  } catch {
+    throw new Error(`Riot API returned non-JSON for ${url}: ${text}`);
+  }
+
+  try {
+    return schema.parse(json);
+  } catch (e: any) {
+    throw new Error(
+      `Schema parse failed for ${url}. Response was: ${JSON.stringify(json).slice(0, 500)}`
+    );
+  }
 }
 
 /* ================================
@@ -96,4 +108,25 @@ export async function getMatch(regionGroup: RegionGroup, matchId: string) {
   }
 
   return res.json();
+}
+
+// Ranked by PUUID (modern + reliable)
+const LeagueEntrySchema = z.object({
+  queueType: z.string(),
+  tier: z.string().optional(),
+  rank: z.string().optional(),
+  leaguePoints: z.number().optional(),
+  wins: z.number().optional(),
+  losses: z.number().optional(),
+});
+
+const LeagueEntriesSchema = z.array(LeagueEntrySchema);
+
+export async function getRankedByPuuid(region: string, puuid: string) {
+  const host = region.toLowerCase(); // euw1
+  const url = `https://${host}.api.riotgames.com/lol/league/v4/entries/by-puuid/${encodeURIComponent(
+    puuid
+  )}`;
+
+  return riotFetch(url, LeagueEntriesSchema);
 }

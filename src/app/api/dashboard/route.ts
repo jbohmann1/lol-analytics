@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAccountByRiotId, getMatch, getMatchIds, regionToGroup } from "@/lib/riot";
 import { extractRowFromMatch, summarizeRows } from "@/lib/analytics";
 import { prisma } from "@/lib/prisma";
+import { getRankedByPuuid } from "@/lib/riot";
 
 
 async function mapWithConcurrency<T, R>(
@@ -50,14 +51,21 @@ export async function GET(req: Request) {
     // 1) Riot ID -> PUUID
     const account = await getAccountByRiotId(regionGroup, gameName, tagLine);
 
-    await prisma.player.upsert({
-      where: { puuid: account.puuid },
-      update: { region, gameName, tagLine },
-      create: { puuid: account.puuid, region, gameName, tagLine },
-    });
-
     // 2) PUUID -> match IDs
     const matchIds = await getMatchIds(regionGroup, account.puuid, count);
+
+    let ranked = { solo: null as any, flex: null as any };
+
+    try {
+      const entries = await getRankedByPuuid(region, account.puuid);
+
+      ranked = {
+        solo: entries.find((e) => e.queueType === "RANKED_SOLO_5x5") ?? null,
+        flex: entries.find((e) => e.queueType === "RANKED_FLEX_SR") ?? null,
+      };
+    } catch (e) {
+      console.log("Ranked fetch failed", e);
+    }
 
     // 3) match IDs -> match JSONs
     const matches = await mapWithConcurrency(matchIds, 3, async (matchId) => {
@@ -129,6 +137,7 @@ export async function GET(req: Request) {
         gameName,
         tagLine,
       },
+      ranked,
       summary,
       rows,
     });
